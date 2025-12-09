@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Focus Timer</title>
+    <!-- Chargement des polices -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS pour le style -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Styles personnalisés pour les icônes -->
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        .play-icon {
+            width: 0; height: 0;
+            border-left: 16px solid currentColor;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            margin-left: 2px;
+        }
+        .pause-icon { display: flex; gap: 3px; }
+        .pause-bar {
+            width: 5px; height: 20px;
+            background-color: currentColor; border-radius: 1px;
+        }
+        .stop-icon {
+            width: 16px; height: 16px;
+            background-color: currentColor; border-radius: 2px;
+        }
+        .reset-icon {
+            width: 20px; height: 20px;
+            border: 2px solid currentColor; border-radius: 50%;
+            position: relative; border-right-color: transparent;
+            transform: rotate(-45deg);
+        }
+        .reset-icon::after {
+            content: ''; position: absolute;
+            top: -4px; right: -2px; width: 0; height: 0;
+            border-left: 7px solid currentColor;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+        .cross-icon { position: relative; width: 16px; height: 16px; }
+        .cross-icon::before, .cross-icon::after {
+            content: ''; position: absolute;
+            width: 2px; height: 16px; background-color: currentColor;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        .cross-icon::after { transform: translate(-50%, -50%) rotate(-45deg); }
+    </style>
+</head>
+<body class="min-h-screen bg-[#FBDEC4] text-slate-800 p-8">
+    <div id="root"></div>
+    
+    <!-- React et Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- API YouTube -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function PomodoroTimer() {
+          // --- ETATS ---
+          const [youtubeUrl, setYoutubeUrl] = useState('');
+          const [videoId, setVideoId] = useState('');
+          const [isPlaylist, setIsPlaylist] = useState(false);
+          const [playlistId, setPlaylistId] = useState('');
+          const [workTime, setWorkTime] = useState(25);
+          const [shortBreak, setShortBreak] = useState(5);
+          const [longBreak, setLongBreak] = useState(15);
+          const [timeLeft, setTimeLeft] = useState(25 * 60);
+          const [isRunning, setIsRunning] = useState(false);
+          const [currentCycle, setCurrentCycle] = useState(1);
+          const [isWorkSession, setIsWorkSession] = useState(true);
+          const [videoHistory, setVideoHistory] = useState([]);
+          const [todayPomodoros, setTodayPomodoros] = useState(0);
+          const [lastResetDate, setLastResetDate] = useState('');
+          const [currentTask, setCurrentTask] = useState('');
+          const [taskStartCycle, setTaskStartCycle] = useState(1);
+          const [tasksInProgress, setTasksInProgress] = useState([]);
+          const [completedTasks, setCompletedTasks] = useState([]);
+          const [taskStats, setTaskStats] = useState({});
+          const [activeTaskId, setActiveTaskId] = useState(null);
+          
+          const intervalRef = useRef(null);
+          const audioContextRef = useRef(null);
+          const playerRef = useRef(null);
+
+          // Initialisation des données depuis localStorage
+          useEffect(() => {
+            const history = JSON.parse(localStorage.getItem('pomodoroHistory') || '[]');
+            const count = parseInt(localStorage.getItem('todayPomodoros') || '0');
+            const date = localStorage.getItem('lastResetDate') || '';
+            const tasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+            const stats = JSON.parse(localStorage.getItem('taskStats') || '{}');
+            const inProgress = JSON.parse(localStorage.getItem('tasksInProgress') || '[]');
+            
+            setVideoHistory(history);
+            setTodayPomodoros(count);
+            setLastResetDate(date);
+            setCompletedTasks(tasks);
+            setTaskStats(stats);
+            setTasksInProgress(inProgress);
+            
+            checkDailyReset();
+          }, []);
+
+          // Gestion du lecteur YouTube
+          useEffect(() => {
+            if (videoId && window.YT && window.YT.Player) {
+              if (playerRef.current) {
+                // On essaie de détruire proprement l'instance précédente si elle existe
+                try { playerRef.current.destroy(); } catch(e) {}
+              }
+              
+              // Création du nouveau lecteur
+              playerRef.current = new window.YT.Player('youtube-player', {
+                videoId: videoId,
+                playerVars: {
+                  autoplay: 0,
+                  controls: 1,
+                  // Important pour éviter l'erreur 153 : définir l'origine
+                  origin: window.location.origin 
+                },
+                events: {
+                  onReady: (event) => {
+                    if (isRunning) {
+                      event.target.playVideo();
+                    }
+                  }
+                }
+              });
+            }
+          }, [videoId]);
+
+          const checkDailyReset = () => {
+            const now = new Date();
+            const today = now.toDateString();
+            const storedDate = localStorage.getItem('lastResetDate');
+            
+            if (storedDate !== today) {
+              const currentHour = now.getHours();
+              if (currentHour >= 8) {
+                setTodayPomodoros(0);
+                localStorage.setItem('todayPomodoros', '0');
+                localStorage.setItem('lastResetDate', today);
+                setLastResetDate(today);
+              }
+            }
+          };
+
+          const extractVideoId = (url) => {
+            const playlistMatch = url.match(/[?&]list=([^&]+)/);
+            if (playlistMatch) {
+              setIsPlaylist(true);
+              setPlaylistId(playlistMatch[1]);
+              return null;
+            }
+            
+            setIsPlaylist(false);
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length === 11) ? match[7] : null;
+          };
+
+          const loadVideo = () => {
+            const id = extractVideoId(youtubeUrl);
+            if (id || isPlaylist) {
+              if (id) {
+                setVideoId(id);
+              }
+              const newHistory = [{url: youtubeUrl, id: id || playlistId, isPlaylist}, ...videoHistory.filter(v => v.url !== youtubeUrl)].slice(0, 5);
+              setVideoHistory(newHistory);
+              localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory));
+            }
+          };
+
+          const loadHistoryVideo = (historyItem) => {
+            setYoutubeUrl(historyItem.url);
+            setIsPlaylist(historyItem.isPlaylist);
+            if (historyItem.isPlaylist) {
+              setPlaylistId(historyItem.id);
+            } else {
+              setVideoId(historyItem.id);
+            }
+          };
+
+          const deleteFromHistory = (index) => {
+            const newHistory = videoHistory.filter((_, i) => i !== index);
+            setVideoHistory(newHistory);
+            localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory));
+          };
+
+          const clearHistory = () => {
+            setVideoHistory([]);
+            localStorage.setItem('pomodoroHistory', '[]');
+          };
+
+          // Logique du Timer
+          useEffect(() => {
+            if (isRunning && timeLeft > 0) {
+              intervalRef.current = setInterval(() => {
+                setTimeLeft(prev => {
+                  if (prev <= 10 && prev > 0) {
+                    playTickSound();
+                  }
+                  if (prev === 1) {
+                    handleCycleEnd();
+                  }
+                  return prev - 1;
+                });
+              }, 1000);
+            } else {
+              clearInterval(intervalRef.current);
+            }
+
+            return () => clearInterval(intervalRef.current);
+          }, [isRunning, timeLeft]);
+
+          const playTickSound = () => {
+            if (!audioContextRef.current) {
+              audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            const ctx = audioContextRef.current;
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.1);
+          };
+
+          const playBellSound = () => {
+            if (!audioContextRef.current) {
+              audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            const ctx = audioContextRef.current;
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = 400;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 1.5);
+          };
+
+          const handleCycleEnd = () => {
+            playBellSound();
+
+            if (currentCycle >= 8) {
+              setIsRunning(false);
+              setCurrentCycle(1);
+              setIsWorkSession(true);
+              setTimeLeft(workTime * 60);
+              return;
+            }
+
+            const nextCycle = currentCycle + 1;
+            setCurrentCycle(nextCycle);
+            
+            if (isWorkSession) {
+              const newPomodoros = todayPomodoros + 1;
+              setTodayPomodoros(newPomodoros);
+              localStorage.setItem('todayPomodoros', newPomodoros.toString());
+              checkDailyReset();
+              
+              setIsWorkSession(false);
+              const isLongBreak = nextCycle % 2 === 0 && (nextCycle / 2) % 4 === 0;
+              const breakTime = isLongBreak ? longBreak : shortBreak;
+              setTimeLeft(breakTime * 60);
+            } else {
+              setIsWorkSession(true);
+              setTimeLeft(workTime * 60);
+            }
+            
+            // Redémarrage automatique après 1 seconde
+            setTimeout(() => {
+              setIsRunning(true);
+              if (playerRef.current && playerRef.current.playVideo) {
+                playerRef.current.playVideo();
+              }
+            }, 1000);
+          };
+
+          const toggleTimer = () => {
+            const newRunningState = !isRunning;
+            setIsRunning(newRunningState);
+            
+            // Nécessaire pour activer l'audioContext sur certains navigateurs (Chrome/Safari)
+            if (newRunningState && !audioContextRef.current) {
+                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (playerRef.current) {
+              if (newRunningState && playerRef.current.playVideo) {
+                playerRef.current.playVideo();
+              } else if (!newRunningState && playerRef.current.pauseVideo) {
+                playerRef.current.pauseVideo();
+              }
+            }
+          };
+
+          const stopTimer = () => {
+            setIsRunning(false);
+            setCurrentCycle(1);
+            setIsWorkSession(true);
+            setTimeLeft(workTime * 60);
+            setActiveTaskId(null);
+            if (playerRef.current && playerRef.current.pauseVideo) {
+              playerRef.current.pauseVideo();
+            }
+          };
+
+          const resetTimer = () => {
+            setIsRunning(false);
+            setCurrentCycle(1);
+            setIsWorkSession(true);
+            setTimeLeft(workTime * 60);
+            if (playerRef.current && playerRef.current.pauseVideo) {
+              playerRef.current.pauseVideo();
+            }
+          };
+
+          const formatTime = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          };
+
+          const startTask = () => {
+            if (!currentTask.trim()) return;
+            
+            const newTask = {
+              id: Date.now(),
+              name: currentTask.trim(),
+              startCycle: currentCycle,
+              startedAt: new Date().toISOString(),
+            };
+            
+            const newTasksInProgress = [...tasksInProgress, newTask];
+            setTasksInProgress(newTasksInProgress);
+            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
+            
+            setActiveTaskId(newTask.id);
+            setTaskStartCycle(currentCycle);
+            setCurrentTask('');
+            
+            setIsRunning(true);
+            // Activer l'audio context au clic
+            if (!audioContextRef.current) {
+                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (playerRef.current && playerRef.current.playVideo) {
+              playerRef.current.playVideo();
+            }
+          };
+
+          const completeTask = (taskId) => {
+            const task = tasksInProgress.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const cyclesSpent = currentCycle - task.startCycle + 1;
+            
+            const completedTask = {
+              ...task,
+              cycles: cyclesSpent,
+              completedAt: new Date().toISOString(),
+            };
+            
+            const newCompletedTasks = [completedTask, ...completedTasks];
+            setCompletedTasks(newCompletedTasks);
+            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+            
+            const newStats = { ...taskStats };
+            if (!newStats[task.name]) {
+              newStats[task.name] = { totalCycles: 0, count: 0 };
+            }
+            newStats[task.name].totalCycles += cyclesSpent;
+            newStats[task.name].count += 1;
+            
+            setTaskStats(newStats);
+            localStorage.setItem('taskStats', JSON.stringify(newStats));
+            
+            const newTasksInProgress = tasksInProgress.filter(t => t.id !== taskId);
+            setTasksInProgress(newTasksInProgress);
+            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
+            
+            if (activeTaskId === taskId) {
+              setActiveTaskId(null);
+              setIsRunning(false);
+              if (playerRef.current && playerRef.current.pauseVideo) {
+                playerRef.current.pauseVideo();
+              }
+            }
+          };
+
+          const moveToInProgress = (taskId) => {
+            const task = completedTasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const restoredTask = {
+              id: Date.now(),
+              name: task.name,
+              startCycle: currentCycle,
+              startedAt: new Date().toISOString(),
+            };
+            
+            const newTasksInProgress = [...tasksInProgress, restoredTask];
+            setTasksInProgress(newTasksInProgress);
+            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
+            
+            const newCompletedTasks = completedTasks.filter(t => t.id !== taskId);
+            setCompletedTasks(newCompletedTasks);
+            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+          };
+
+          const getAverageTime = (taskName) => {
+            if (!taskStats[taskName]) return 0;
+            const avg = taskStats[taskName].totalCycles / taskStats[taskName].count;
+            return Math.ceil(avg);
+          };
+
+          const formatCycles = (cycles) => {
+            const hours = Math.floor(cycles * workTime / 60);
+            const mins = (cycles * workTime) % 60;
+            if (hours > 0) {
+              return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
+            }
+            return `${mins}min`;
+          };
+
+          const currentRound = Math.ceil(currentCycle / 2);
+
+          return (
+            <div className="max-w-7xl mx-auto">
+              <h1 className="text-5xl font-bold mb-12 text-center text-[#151515]">
+                Pomodoro Focus Timer
+              </h1>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* COLONNE GAUCHE */}
+                <div className="space-y-6">
+                  {/* Carte Vidéo */}
+                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Vidéo d'ambiance</h2>
+                    <div className="flex gap-3 mb-6">
+                      <input
+                        type="text"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                        placeholder="URL YouTube (vidéo ou playlist)"
+                        className="flex-1 px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
+                      />
+                      <button
+                        onClick={loadVideo}
+                        className="px-8 py-3 bg-[#151515] hover:bg-[#2a2a2a] text-white rounded-2xl font-medium transition"
+                      >
+                        Charger
+                      </button>
+                    </div>
+                    <div className="aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-[#151515]">
+                      {videoId || isPlaylist ? (
+                        isPlaylist ? (
+                          <iframe
+                            className="w-full h-full"
+                            src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=0&controls=1&origin=${window.location.origin}`}
+                            title="YouTube playlist player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        ) : (
+                          <div id="youtube-player" className="w-full h-full"></div>
+                        )
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                          Entrez une URL YouTube pour commencer
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Historique Vidéo */}
+                  {videoHistory.length > 0 && (
+                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-semibold text-[#151515]">Historique des vidéos</h3>
+                        <button
+                          onClick={clearHistory}
+                          className="text-sm px-4 py-2 bg-[#F2994A] text-[#FEFAF5] hover:bg-[#e08936] border-2 border-[#FEFAF5] rounded-xl transition"
+                        >
+                          Vider
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {videoHistory.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <button
+                              onClick={() => loadHistoryVideo(item)}
+                              className="flex-1 text-left px-5 py-3 bg-white hover:bg-slate-50 border-2 border-[#151515] rounded-2xl transition text-sm truncate text-[#151515]"
+                            >
+                              {item.url}
+                            </button>
+                            <button
+                              onClick={() => deleteFromHistory(idx)}
+                              className="px-4 py-3 bg-[#F2994A] hover:bg-[#e08936] text-[#FEFAF5] border-2 border-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
+                            >
+                              <div className="cross-icon"></div>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Historique Tâches */}
+                  {completedTasks.length > 0 && (
+                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Historique des tâches</h2>
+                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {completedTasks.slice(0, 10).map((task) => (
+                          <div key={task.id} className="bg-white p-4 rounded-2xl border-2 border-[#151515]">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="font-medium text-[#151515]">{task.name}</div>
+                                <div className="text-slate-600 text-xs mt-1">
+                                  {formatCycles(task.cycles)} • {new Date(task.completedAt).toLocaleString('fr-FR')}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => moveToInProgress(task.id)}
+                                className="px-3 py-2 bg-[#F2994A] text-[#FEFAF5] hover:bg-[#e08936] border-2 border-[#FEFAF5] rounded-xl text-xs transition ml-3"
+                              >
+                                Reprendre
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* COLONNE DROITE */}
+                <div className="space-y-6">
+                  {/* Timer Principal */}
+                  <div className="bg-[#FEFAF5] p-10 rounded-3xl border-2 border-[#151515] text-center">
+                    <div className="mb-6">
+                      <span className="text-sm font-medium text-slate-600">
+                        {isWorkSession ? 'Session de travail' : 'Pause'} • Tour {currentRound}/4 (Cycle {currentCycle}/8)
+                      </span>
+                    </div>
+                    <div className="text-8xl font-bold mb-10 text-[#151515]">
+                      {formatTime(timeLeft)}
+                    </div>
+                    <div className="flex justify-center gap-4 mb-8">
+                      <button
+                        onClick={toggleTimer}
+                        className={`p-5 border-2 rounded-2xl transition flex items-center justify-center ${
+                          isRunning 
+                            ? 'bg-[#F2994A] border-[#FEFAF5] text-[#FEFAF5] hover:bg-[#e08936]' 
+                            : 'bg-[#FEFAF5] border-[#151515] text-[#151515] hover:bg-slate-50'
+                        }`}
+                      >
+                        {isRunning ? (
+                          <div className="pause-icon">
+                            <div className="pause-bar"></div>
+                            <div className="pause-bar"></div>
+                          </div>
+                        ) : (
+                          <div className="play-icon"></div>
+                        )}
+                      </button>
+                      <button
+                        onClick={stopTimer}
+                        className="p-5 bg-[#F2994A] border-2 border-[#FEFAF5] hover:bg-[#e08936] text-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
+                      >
+                        <div className="stop-icon"></div>
+                      </button>
+                      <button
+                        onClick={resetTimer}
+                        className="p-5 bg-[#F2994A] border-2 border-[#FEFAF5] hover:bg-[#e08936] text-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
+                      >
+                        <div className="reset-icon"></div>
+                      </button>
+                    </div>
+                    <div className="text-xl font-semibold text-[#FEFAF5] bg-[#F2994A] py-4 px-6 rounded-2xl border-2 border-[#151515]">
+                      Aujourd'hui : {todayPomodoros} pomodoro{todayPomodoros > 1 ? 's' : ''}
+                    </div>
+                  </div>
+
+                  {/* Réglages */}
+                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Réglages</h2>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[#151515]">Temps de travail (min)</label>
+                        <input
+                          type="number"
+                          value={workTime}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setWorkTime(val);
+                            if (isWorkSession && !isRunning) setTimeLeft(val * 60);
+                          }}
+                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
+                          min="1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[#151515]">Pause courte (min)</label>
+                        <input
+                          type="number"
+                          value={shortBreak}
+                          onChange={(e) => setShortBreak(parseInt(e.target.value) || 0)}
+                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[#151515]">Pause longue (min)</label>
+                        <input
+                          type="number"
+                          value={longBreak}
+                          onChange={(e) => setLongBreak(parseInt(e.target.value) || 0)}
+                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nouvelle Tâche */}
+                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Nouvelle tâche</h2>
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        value={currentTask}
+                        onChange={(e) => setCurrentTask(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && startTask()}
+                        placeholder="Ex: Montage vidéo, Rédaction article..."
+                        className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
+                      />
+                      <button
+                        onClick={startTask}
+                        disabled={!currentTask.trim()}
+                        className="w-full px-5 py-4 bg-[#151515] hover:bg-[#2a2a2a] text-white disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed rounded-2xl font-medium transition border-2 border-[#151515]"
+                      >
+                        Lancer la tâche
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tâches en cours */}
+                  {tasksInProgress.length > 0 && (
+                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Tâches en cours</h2>
+                      <div className="space-y-3">
+                        {tasksInProgress.map((task) => (
+                          <div key={task.id} className={`p-5 rounded-2xl border-2 ${activeTaskId === task.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-[#151515]'}`}>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="font-medium flex-1 text-[#151515]">{task.name}</div>
+                              <button
+                                onClick={() => completeTask(task.id)}
+                                className="px-4 py-2 bg-[#F2994A] hover:bg-[#e08936] text-[#FEFAF5] border-2 border-[#FEFAF5] rounded-xl text-sm transition ml-3"
+                              >
+                                ✓ Terminée
+                              </button>
+                            </div>
+                            <div className="text-xs text-slate-600 font-medium">
+                              Cycles : {currentCycle - task.startCycle + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Statistiques */}
+                  {Object.keys(taskStats).length > 0 && (
+                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Statistiques par activité</h2>
+                      <div className="space-y-3">
+                        {Object.entries(taskStats).map(([taskName, stats]) => (
+                          <div key={taskName} className="bg-white p-5 rounded-2xl border-2 border-[#151515]">
+                            <div className="font-medium mb-2 text-[#151515]">{taskName}</div>
+                            <div className="text-sm text-slate-700">
+                              Temps moyen : {formatCycles(getAverageTime(taskName))} ({getAverageTime(taskName)} cycle{getAverageTime(taskName) > 1 ? 's' : ''})
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1">
+                              {stats.count} tâche{stats.count > 1 ? 's' : ''} terminée{stats.count > 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Rendu React 18 correct
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PomodoroTimer />);
+    </script>
+</body>
+</html>
