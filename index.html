@@ -4,98 +4,192 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pomodoro Focus Timer</title>
-    <!-- Chargement des polices -->
+    
+    <!-- FAVICON -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS pour le style -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Styles personnalisés pour les icônes -->
     <style>
-        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-        .play-icon {
-            width: 0; height: 0;
-            border-left: 16px solid currentColor;
-            border-top: 10px solid transparent;
-            border-bottom: 10px solid transparent;
-            margin-left: 2px;
-        }
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; transition: background-color 0.5s ease, color 0.5s ease; overflow-x: hidden; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        div, button, input, span, svg { transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, fill 0.3s ease, stroke 0.3s ease; }
+        .play-icon { width: 0; height: 0; border-left: 14px solid currentColor; border-top: 8px solid transparent; border-bottom: 8px solid transparent; margin-left: 2px; }
         .pause-icon { display: flex; gap: 3px; }
-        .pause-bar {
-            width: 5px; height: 20px;
-            background-color: currentColor; border-radius: 1px;
-        }
-        .stop-icon {
-            width: 16px; height: 16px;
-            background-color: currentColor; border-radius: 2px;
-        }
-        .reset-icon {
-            width: 20px; height: 20px;
-            border: 2px solid currentColor; border-radius: 50%;
-            position: relative; border-right-color: transparent;
-            transform: rotate(-45deg);
-        }
-        .reset-icon::after {
-            content: ''; position: absolute;
-            top: -4px; right: -2px; width: 0; height: 0;
-            border-left: 7px solid currentColor;
-            border-top: 4px solid transparent;
-            border-bottom: 4px solid transparent;
-        }
+        .pause-bar { width: 4px; height: 16px; background-color: currentColor; border-radius: 1px; }
+        .stop-icon { width: 14px; height: 14px; background-color: currentColor; border-radius: 2px; }
+        .reset-icon { width: 16px; height: 16px; border: 2px solid currentColor; border-radius: 50%; position: relative; border-right-color: transparent; transform: rotate(-45deg); }
+        .reset-icon::after { content: ''; position: absolute; top: -3px; right: -2px; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 3px solid transparent; border-bottom: 3px solid transparent; }
         .cross-icon { position: relative; width: 16px; height: 16px; }
-        .cross-icon::before, .cross-icon::after {
-            content: ''; position: absolute;
-            width: 2px; height: 16px; background-color: currentColor;
-            left: 50%; top: 50%;
-            transform: translate(-50%, -50%) rotate(45deg);
-        }
+        .cross-icon::before, .cross-icon::after { content: ''; position: absolute; width: 2px; height: 16px; background-color: currentColor; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg); }
         .cross-icon::after { transform: translate(-50%, -50%) rotate(-45deg); }
+        .trash-icon { position: relative; width: 14px; height: 16px; border: 2px solid currentColor; border-top: none; border-radius: 0 0 2px 2px; }
+        .trash-icon::before { content: ''; position: absolute; top: -4px; left: -2px; width: 18px; height: 2px; background-color: currentColor; }
+        .trash-icon::after { content: ''; position: absolute; top: -6px; left: 4px; width: 6px; height: 2px; border: 2px solid currentColor; border-bottom: none; border-radius: 2px 2px 0 0; }
+        .grip-icon { display: flex; flex-direction: column; gap: 2px; justify-content: center; align-items: center; width: 10px; cursor: move; }
+        .grip-dot { width: 4px; height: 4px; background-color: currentColor; opacity: 0.3; border-radius: 50%; }
+        .card-draggable:active { cursor: grabbing; }
+        .heart-icon { width: 24px; height: 24px; display: inline-block; }
+        .heart-fill { fill: currentColor; } 
+        .heart-empty { fill: transparent; stroke: currentColor; stroke-width: 2; }
+        .plus-icon { position: relative; width: 14px; height: 14px; }
+        .plus-icon::before, .plus-icon::after { content: ''; position: absolute; background-color: currentColor; left: 50%; top: 50%; }
+        .plus-icon::before { width: 2px; height: 14px; transform: translate(-50%, -50%); }
+        .plus-icon::after { width: 14px; height: 2px; transform: translate(-50%, -50%); }
+        
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-animate { animation: popIn 0.3s ease-out forwards; }
+        .progress-ring__circle { transition: stroke-dashoffset 0.35s; transform: rotate(-90deg); transform-origin: 50% 50%; }
+        .trophy-locked { filter: grayscale(100%); opacity: 0.4; }
+        .trophy-unlocked { filter: none; opacity: 1; transform: scale(1); transition: transform 0.2s; }
+        .trophy-unlocked:hover { transform: scale(1.1); }
+        @keyframes pulse-active {
+            0% { box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(var(--pulse-color), 0); }
+            100% { box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0); }
+        }
+        .active-dot { animation: pulse-active 2s infinite; }
+        
+        .checkbox-custom { appearance: none; width: 20px; height: 20px; border: 2px solid currentColor; border-radius: 4px; cursor: pointer; position: relative; }
+        .checkbox-custom:checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: bold; color: currentColor; }
+        .subtask-completed { opacity: 0.5; text-decoration: line-through; }
+        
+        /* Glassmorphism & Modern Design */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-card-dark {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Fond dégradé subtil */
+        .gradient-bg {
+            background: linear-gradient(135deg, #f5e6d3 0%, #faf5f0 50%, #f9e8e0 100%);
+        }
+        
+        .gradient-bg-dark {
+            background: linear-gradient(135deg, #2d1810 0%, #3d2418 50%, #2a1f1a 100%);
+        }
+        
+        /* Timer ultra-moderne */
+        .timer-text {
+            font-weight: 200;
+            letter-spacing: -0.02em;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-[#FBDEC4] text-slate-800 p-8">
+<body class="min-h-screen transition-colors duration-500">
     <div id="root"></div>
-    
-    <!-- React et Babel -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- API YouTube -->
     <script src="https://www.youtube.com/iframe_api"></script>
-    
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // THEME PHAROW ONLY
+        const THEME = {
+            day: { bg: "#FBDEC4", card: "#FEFAF5", text: "#151515", primary: "#F2994A", secondary: "#151515", accent: "#22C55E", border: "#151515" },
+            night: { bg: "#2C1810", card: "#432818", text: "#FBDEC4", primary: "#F2994A", secondary: "#FBDEC4", accent: "#22C55E", border: "#6B4226" }
+        };
+
+        const BADGES_DEF = [
+            { id: 'FIRST_STEP', icon: '🌱', name: 'Premiers pas', desc: 'Terminer votre premier Pomodoro' },
+            { id: 'EARLY_BIRD', icon: '🌅', name: 'Lève-tôt', desc: 'Terminer un cycle avant 9h' },
+            { id: 'NIGHT_OWL', icon: '🦉', name: 'Oiseau de nuit', desc: 'Terminer un cycle après 22h' },
+            { id: 'MARATHON', icon: '🏃', name: 'Marathonien', desc: 'Faire 8 cycles en une journée' },
+            { id: 'STREAK_3', icon: '🔥', name: 'Régulier', desc: 'Série de 3 jours consécutifs' },
+            { id: 'MASTER', icon: '👑', name: 'Maître du temps', desc: 'Atteindre le niveau 10' },
+        ];
+
+        const FullHeart = ({ color }) => <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" style={{color: color}}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>;
+        const EmptyHeart = ({ color }) => <svg viewBox="0 0 24 24" className="w-6 h-6 fill-transparent stroke-current stroke-2" style={{color: color}}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>;
+        const GripHandle = () => <div className="grip-icon mr-3"><div className="flex gap-[2px]"><div className="grip-dot"></div><div className="grip-dot"></div></div><div className="flex gap-[2px]"><div className="grip-dot"></div><div className="grip-dot"></div></div><div className="flex gap-[2px]"><div className="grip-dot"></div><div className="grip-dot"></div></div></div>;
+        
+        const ProgressRing = ({ radius, stroke, progress, color, trackColor }) => {
+            const normalizedRadius = radius - stroke * 2;
+            const circumference = normalizedRadius * 2 * Math.PI;
+            const strokeDashoffset = circumference - (progress / 100) * circumference;
+            return (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg height={radius * 2} width={radius * 2}>
+                        <circle stroke={trackColor} strokeWidth={stroke} fill="transparent" r={normalizedRadius} cx={radius} cy={radius} opacity="0.2" />
+                        <circle className="progress-ring__circle" stroke={color} strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset }} strokeLinecap="round" fill="transparent" r={normalizedRadius} cx={radius} cy={radius} />
+                    </svg>
+                </div>
+            );
+        };
+
         function PomodoroTimer() {
-          // --- ETATS ---
           const [youtubeUrl, setYoutubeUrl] = useState('');
           const [videoId, setVideoId] = useState('');
           const [isPlaylist, setIsPlaylist] = useState(false);
           const [playlistId, setPlaylistId] = useState('');
-          const [workTime, setWorkTime] = useState(25);
-          const [shortBreak, setShortBreak] = useState(5);
-          const [longBreak, setLongBreak] = useState(15);
-          const [timeLeft, setTimeLeft] = useState(25 * 60);
+          
+          const [workTime, setWorkTime] = useState(30);
+          const [shortBreak, setShortBreak] = useState(1);
+          const [longBreak, setLongBreak] = useState(20);
+          
+          const [timeLeft, setTimeLeft] = useState(30 * 60);
+          const [totalTimeForCurrentSession, setTotalTimeForCurrentSession] = useState(30 * 60);
           const [isRunning, setIsRunning] = useState(false);
           const [currentCycle, setCurrentCycle] = useState(1);
           const [isWorkSession, setIsWorkSession] = useState(true);
           const [videoHistory, setVideoHistory] = useState([]);
           const [todayPomodoros, setTodayPomodoros] = useState(0);
           const [lastResetDate, setLastResetDate] = useState('');
+          
           const [currentTask, setCurrentTask] = useState('');
-          const [taskStartCycle, setTaskStartCycle] = useState(1);
+          const [subtasks, setSubtasks] = useState([]);
+          const [newSubtaskName, setNewSubtaskName] = useState('');
+          const [newSubtaskCycles, setNewSubtaskCycles] = useState(2);
+          
+          const [targetCycles, setTargetCycles] = useState(2); 
           const [tasksInProgress, setTasksInProgress] = useState([]);
           const [completedTasks, setCompletedTasks] = useState([]);
           const [taskStats, setTaskStats] = useState({});
           const [activeTaskId, setActiveTaskId] = useState(null);
+          const [lives, setLives] = useState(5); 
+          const [showGameOver, setShowGameOver] = useState(false);
+          const [xp, setXp] = useState(0);
+          const [streak, setStreak] = useState(0);
+          const [badges, setBadges] = useState([]); 
+          const [volume, setVolume] = useState(0.3); 
+          const [isDarkMode, setIsDarkMode] = useState(false);
           
+          const [mediaMode, setMediaMode] = useState('video');
+          const [calendarEmail, setCalendarEmail] = useState('');
+
           const intervalRef = useRef(null);
           const audioContextRef = useRef(null);
           const playerRef = useRef(null);
+          const dragItem = useRef(null);
+          const dragOverItem = useRef(null);
 
-          // Initialisation des données depuis localStorage
+          const stateRef = useRef({ isRunning, activeTaskId });
+          stateRef.current = { isRunning, activeTaskId };
+
+          const theme = THEME[isDarkMode ? 'night' : 'day'];
+
+          useEffect(() => {
+              document.body.style.backgroundColor = theme.bg;
+              document.body.style.color = theme.text;
+              const pulseRgb = theme.secondary.match(/\w\w/g).map(x => parseInt(x, 16)).join(', ');
+              document.documentElement.style.setProperty('--pulse-color', pulseRgb);
+          }, [theme]);
+
           useEffect(() => {
             const history = JSON.parse(localStorage.getItem('pomodoroHistory') || '[]');
             const count = parseInt(localStorage.getItem('todayPomodoros') || '0');
@@ -103,620 +197,732 @@
             const tasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
             const stats = JSON.parse(localStorage.getItem('taskStats') || '{}');
             const inProgress = JSON.parse(localStorage.getItem('tasksInProgress') || '[]');
+            const savedLives = parseInt(localStorage.getItem('pomodoroLives'));
+            const savedXp = parseInt(localStorage.getItem('pomodoroXp') || '0');
+            const savedStreak = parseInt(localStorage.getItem('pomodoroStreak') || '0');
+            const savedBadges = JSON.parse(localStorage.getItem('pomodoroBadges') || '[]');
+            const savedMode = localStorage.getItem('pomodoroDarkMode') === 'true';
             
+            const savedMediaMode = localStorage.getItem('pomodoroMediaMode') || 'video';
+            const savedCalendarEmail = localStorage.getItem('pomodoroCalendarEmail') || '';
+
             setVideoHistory(history);
             setTodayPomodoros(count);
             setLastResetDate(date);
             setCompletedTasks(tasks);
             setTaskStats(stats);
             setTasksInProgress(inProgress);
+            setXp(savedXp);
+            setStreak(savedStreak);
+            setBadges(savedBadges);
+            setIsDarkMode(savedMode);
+            setMediaMode(savedMediaMode);
+            setCalendarEmail(savedCalendarEmail);
             
+            if (!isNaN(savedLives)) { setLives(savedLives); if (savedLives === 0) setShowGameOver(true); } else { setLives(5); }
+            if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
             checkDailyReset();
+            checkStreakValidity(date, savedStreak);
           }, []);
 
-          // Gestion du lecteur YouTube
+          const toggleDarkMode = () => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem('pomodoroDarkMode', newMode.toString()); };
+          
+          const checkStreakValidity = (lastDate, currentStreak) => {
+              if (!lastDate) return;
+              const today = new Date().toDateString();
+              if (lastDate === today) return;
+              const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+              if (lastDate !== yesterday.toDateString()) { setStreak(0); localStorage.setItem('pomodoroStreak', '0'); }
+          };
+          
+          const addXp = (amount) => { const newXp = xp + amount; setXp(newXp); localStorage.setItem('pomodoroXp', newXp.toString()); checkBadges(newXp); };
+          const unlockBadge = (badgeId) => { if (!badges.includes(badgeId)) { const newBadges = [...badges, badgeId]; setBadges(newBadges); localStorage.setItem('pomodoroBadges', JSON.stringify(newBadges)); if ("Notification" in window && Notification.permission === "granted") new Notification("Trophée débloqué ! 🏆", { body: BADGES_DEF.find(b => b.id === badgeId).name }); } };
+          const checkBadges = (currentXp = xp) => {
+              if (todayPomodoros >= 1 || completedTasks.length > 0) unlockBadge('FIRST_STEP');
+              if (todayPomodoros >= 8) unlockBadge('MARATHON');
+              if (streak >= 3) unlockBadge('STREAK_3');
+              if (currentXp >= 5000) unlockBadge('MASTER');
+              const hour = new Date().getHours();
+              if (hour < 9) unlockBadge('EARLY_BIRD');
+              if (hour >= 22) unlockBadge('NIGHT_OWL');
+          };
+          const getLevel = () => Math.floor(xp / 500) + 1;
+          const getXpProgress = () => ((xp % 500) / 500) * 100;
+
+          useEffect(() => { document.title = isRunning ? `[${Math.floor(timeLeft / 60)}'] Pomodoro` : "Pomodoro Focus Timer"; }, [timeLeft, isRunning]);
+
           useEffect(() => {
-            if (videoId && window.YT && window.YT.Player) {
-              if (playerRef.current) {
-                // On essaie de détruire proprement l'instance précédente si elle existe
-                try { playerRef.current.destroy(); } catch(e) {}
-              }
-              
-              // Création du nouveau lecteur
-              playerRef.current = new window.YT.Player('youtube-player', {
-                videoId: videoId,
-                playerVars: {
-                  autoplay: 0,
-                  controls: 1,
-                  // Important pour éviter l'erreur 153 : définir l'origine
-                  origin: window.location.origin 
-                },
-                events: {
-                  onReady: (event) => {
-                    if (isRunning) {
-                      event.target.playVideo();
-                    }
-                  }
-                }
+            if (mediaMode === 'video' && videoId && window.YT && window.YT.Player) {
+              if (playerRef.current) try { playerRef.current.destroy(); } catch(e) {}
+              playerRef.current = new window.YT.Player('youtube-player', { 
+                  videoId: videoId, 
+                  playerVars: { autoplay: 0, controls: 1, origin: window.location.origin }, 
+                  events: { 
+                      onReady: (e) => { 
+                          playerRef.current = e.target;
+                          if (stateRef.current.isRunning) e.target.playVideo(); 
+                      },
+                      onStateChange: (e) => {
+                          if (e.data === window.YT.PlayerState.PLAYING) {
+                              if (!stateRef.current.isRunning) {
+                                  if (stateRef.current.activeTaskId) {
+                                      setIsRunning(true);
+                                      initAudio();
+                                  } else {
+                                      e.target.pauseVideo();
+                                      alert("⚠️ Veuillez sélectionner une tâche avant de lancer la vidéo !");
+                                  }
+                              }
+                          } else if (e.data === window.YT.PlayerState.PAUSED) {
+                              if (stateRef.current.isRunning) {
+                                  setIsRunning(false);
+                              }
+                          }
+                      }
+                  } 
               });
             }
-          }, [videoId]);
+          }, [videoId, mediaMode]);
 
           const checkDailyReset = () => {
-            const now = new Date();
-            const today = now.toDateString();
-            const storedDate = localStorage.getItem('lastResetDate');
-            
+            const now = new Date(); const today = now.toDateString(); const storedDate = localStorage.getItem('lastResetDate');
             if (storedDate !== today) {
               const currentHour = now.getHours();
-              if (currentHour >= 8) {
-                setTodayPomodoros(0);
-                localStorage.setItem('todayPomodoros', '0');
-                localStorage.setItem('lastResetDate', today);
-                setLastResetDate(today);
-              }
+              if (currentHour >= 8) { setTodayPomodoros(0); localStorage.setItem('todayPomodoros', '0'); localStorage.setItem('lastResetDate', today); setLastResetDate(today); }
             }
           };
 
-          const extractVideoId = (url) => {
-            const playlistMatch = url.match(/[?&]list=([^&]+)/);
-            if (playlistMatch) {
-              setIsPlaylist(true);
-              setPlaylistId(playlistMatch[1]);
-              return null;
-            }
-            
-            setIsPlaylist(false);
-            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[7].length === 11) ? match[7] : null;
+          const initAudio = () => {
+              if (!audioContextRef.current) { audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)(); }
+              if (audioContextRef.current.state === 'suspended') { audioContextRef.current.resume(); }
           };
-
-          const loadVideo = () => {
-            const id = extractVideoId(youtubeUrl);
-            if (id || isPlaylist) {
-              if (id) {
-                setVideoId(id);
-              }
-              const newHistory = [{url: youtubeUrl, id: id || playlistId, isPlaylist}, ...videoHistory.filter(v => v.url !== youtubeUrl)].slice(0, 5);
-              setVideoHistory(newHistory);
-              localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory));
-            }
-          };
-
-          const loadHistoryVideo = (historyItem) => {
-            setYoutubeUrl(historyItem.url);
-            setIsPlaylist(historyItem.isPlaylist);
-            if (historyItem.isPlaylist) {
-              setPlaylistId(historyItem.id);
-            } else {
-              setVideoId(historyItem.id);
-            }
-          };
-
-          const deleteFromHistory = (index) => {
-            const newHistory = videoHistory.filter((_, i) => i !== index);
-            setVideoHistory(newHistory);
-            localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory));
-          };
-
-          const clearHistory = () => {
-            setVideoHistory([]);
-            localStorage.setItem('pomodoroHistory', '[]');
-          };
-
-          // Logique du Timer
-          useEffect(() => {
-            if (isRunning && timeLeft > 0) {
-              intervalRef.current = setInterval(() => {
-                setTimeLeft(prev => {
-                  if (prev <= 10 && prev > 0) {
-                    playTickSound();
-                  }
-                  if (prev === 1) {
-                    handleCycleEnd();
-                  }
-                  return prev - 1;
-                });
-              }, 1000);
-            } else {
-              clearInterval(intervalRef.current);
-            }
-
-            return () => clearInterval(intervalRef.current);
-          }, [isRunning, timeLeft]);
 
           const playTickSound = () => {
-            if (!audioContextRef.current) {
-              audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContextRef.current) {
+                const ctx = audioContextRef.current; const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 800; osc.type = 'sine';
+                gain.gain.setValueAtTime(Math.max(0.01, volume * 0.3), ctx.currentTime); 
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.1);
             }
-            
-            const ctx = audioContextRef.current;
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.1);
           };
 
           const playBellSound = () => {
-            if (!audioContextRef.current) {
-              audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContextRef.current) {
+                const ctx = audioContextRef.current; const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 400; osc.type = 'sine';
+                gain.gain.setValueAtTime(Math.max(0.01, volume), ctx.currentTime); 
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 1.5);
             }
-            
-            const ctx = audioContextRef.current;
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            oscillator.frequency.value = 400;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-            
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 1.5);
           };
 
           const handleCycleEnd = () => {
             playBellSound();
-
-            if (currentCycle >= 8) {
-              setIsRunning(false);
-              setCurrentCycle(1);
-              setIsWorkSession(true);
-              setTimeLeft(workTime * 60);
-              return;
-            }
-
-            const nextCycle = currentCycle + 1;
-            setCurrentCycle(nextCycle);
             
             if (isWorkSession) {
-              const newPomodoros = todayPomodoros + 1;
-              setTodayPomodoros(newPomodoros);
-              localStorage.setItem('todayPomodoros', newPomodoros.toString());
-              checkDailyReset();
-              
-              setIsWorkSession(false);
-              const isLongBreak = nextCycle % 2 === 0 && (nextCycle / 2) % 4 === 0;
-              const breakTime = isLongBreak ? longBreak : shortBreak;
-              setTimeLeft(breakTime * 60);
+                // Fin d'une session de travail
+                const newPomodoros = todayPomodoros + 1;
+                setTodayPomodoros(newPomodoros);
+                localStorage.setItem('todayPomodoros', newPomodoros.toString());
+                addXp(100);
+                
+                if (activeTaskId) {
+                    const updatedTasks = tasksInProgress.map(t => {
+                        if (t.id === activeTaskId) {
+                            return { ...t, spentCycles: (t.spentCycles || 0) + 1 };
+                        }
+                        return t;
+                    });
+                    setTasksInProgress(updatedTasks);
+                    localStorage.setItem('tasksInProgress', JSON.stringify(updatedTasks));
+                }
+
+                const today = new Date().toDateString();
+                const lastStreakDate = localStorage.getItem('lastStreakUpdateDate');
+                if (lastStreakDate !== today) {
+                    const newStreak = streak + 1; setStreak(newStreak);
+                    localStorage.setItem('pomodoroStreak', newStreak.toString());
+                    localStorage.setItem('lastStreakUpdateDate', today);
+                }
+                checkBadges();
+                checkDailyReset();
+                
+                // Incrémenter le cycle et passer en pause
+                let nextCycle = currentCycle + 1;
+                if (nextCycle > 4) nextCycle = 1;
+                setCurrentCycle(nextCycle);
+                
+                // Décider si pause courte ou longue
+                let nextDuration = 0;
+                if (nextCycle === 1) {
+                    // Après le 4ème cycle, pause longue puis reset
+                    nextDuration = longBreak * 60;
+                    sendNotification("Pause Longue", "On souffle !");
+                } else {
+                    nextDuration = shortBreak * 60;
+                    sendNotification("Pause Courte", "Petite pause.");
+                }
+                
+                setIsWorkSession(false);
+                setTimeLeft(nextDuration);
+                setTotalTimeForCurrentSession(nextDuration);
             } else {
-              setIsWorkSession(true);
-              setTimeLeft(workTime * 60);
+                // Fin d'une pause, retour au travail
+                const nextDuration = Math.max(60, workTime * 60);
+                setIsWorkSession(true);
+                setTimeLeft(nextDuration);
+                setTotalTimeForCurrentSession(nextDuration);
+                sendNotification("Au travail", "Concentration maximale !");
             }
             
-            // Redémarrage automatique après 1 seconde
-            setTimeout(() => {
-              setIsRunning(true);
-              if (playerRef.current && playerRef.current.playVideo) {
-                playerRef.current.playVideo();
-              }
-            }, 1000);
+            if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.playVideo === 'function') {
+                if (playerRef.current.getPlayerState && playerRef.current.getPlayerState() !== 1) {
+                     playerRef.current.playVideo();
+                }
+            }
           };
+
+          useEffect(() => {
+            let interval = null;
+            if (isRunning) {
+                if (timeLeft === 0) {
+                    handleCycleEnd();
+                } else {
+                    interval = setInterval(() => {
+                        setTimeLeft((prev) => {
+                            if (prev <= 1) return 0;
+                            if (prev <= 11 && prev > 1) playTickSound();
+                            return prev - 1;
+                        });
+                    }, 1000);
+                }
+            }
+            return () => clearInterval(interval);
+          }, [isRunning, timeLeft]);
 
           const toggleTimer = () => {
-            const newRunningState = !isRunning;
+            if (!activeTaskId && !isRunning) { alert("⚠️ Sélectionnez une tâche pour commencer !"); return; }
+            initAudio(); 
+            const newRunningState = !isRunning; 
             setIsRunning(newRunningState);
             
-            // Nécessaire pour activer l'audioContext sur certains navigateurs (Chrome/Safari)
-            if (newRunningState && !audioContextRef.current) {
-                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            if (playerRef.current) {
-              if (newRunningState && playerRef.current.playVideo) {
-                playerRef.current.playVideo();
-              } else if (!newRunningState && playerRef.current.pauseVideo) {
-                playerRef.current.pauseVideo();
-              }
+            if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.playVideo === 'function') { 
+                if (newRunningState) playerRef.current.playVideo(); 
+                else playerRef.current.pauseVideo(); 
             }
           };
-
+          
           const stopTimer = () => {
-            setIsRunning(false);
-            setCurrentCycle(1);
-            setIsWorkSession(true);
-            setTimeLeft(workTime * 60);
+            if (activeTaskId && isWorkSession) {
+                const updatedTasks = tasksInProgress.map(t => {
+                    if (t.id === activeTaskId) {
+                        return { ...t, spentCycles: (t.spentCycles || 0) + 1 };
+                    }
+                    return t;
+                });
+                setTasksInProgress(updatedTasks);
+                localStorage.setItem('tasksInProgress', JSON.stringify(updatedTasks));
+                addXp(50); 
+            }
+
+            setIsRunning(false); setCurrentCycle(1); setIsWorkSession(true);
+            const t = Math.max(60, workTime * 60); 
+            setTimeLeft(t); setTotalTimeForCurrentSession(t);
             setActiveTaskId(null);
-            if (playerRef.current && playerRef.current.pauseVideo) {
-              playerRef.current.pauseVideo();
+            
+            if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+                playerRef.current.pauseVideo();
             }
           };
-
+          
           const resetTimer = () => {
-            setIsRunning(false);
-            setCurrentCycle(1);
-            setIsWorkSession(true);
-            setTimeLeft(workTime * 60);
-            if (playerRef.current && playerRef.current.pauseVideo) {
-              playerRef.current.pauseVideo();
+            setIsRunning(false); setCurrentCycle(1); setIsWorkSession(true);
+            const t = Math.max(60, workTime * 60); setTimeLeft(t); setTotalTimeForCurrentSession(t);
+            if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+                playerRef.current.pauseVideo();
             }
           };
 
-          const formatTime = (seconds) => {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          const extractVideoId = (url) => {
+            const playlistMatch = url.match(/[?&]list=([^&]+)/); if (playlistMatch) { setIsPlaylist(true); setPlaylistId(playlistMatch[1]); return null; }
+            setIsPlaylist(false); const match = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (match && match[7].length === 11) ? match[7] : null;
           };
+          const loadVideo = () => {
+            const id = extractVideoId(youtubeUrl); if (id || isPlaylist) { if (id) setVideoId(id); const newHistory = [{url: youtubeUrl, id: id || playlistId, isPlaylist}, ...videoHistory.filter(v => v.url !== youtubeUrl)].slice(0, 5); setVideoHistory(newHistory); localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory)); }
+          };
+          const loadHistoryVideo = (item) => { setYoutubeUrl(item.url); setIsPlaylist(item.isPlaylist); if (item.isPlaylist) setPlaylistId(item.id); else setVideoId(item.id); };
+          const deleteFromHistory = (index) => { const newHistory = videoHistory.filter((_, i) => i !== index); setVideoHistory(newHistory); localStorage.setItem('pomodoroHistory', JSON.stringify(newHistory)); };
+          const clearHistory = () => { setVideoHistory([]); localStorage.setItem('pomodoroHistory', '[]'); };
 
+          const adjustTargetCycles = (amount) => { setTargetCycles(prev => { const newVal = prev + amount; return newVal < 1 ? 1 : newVal; }); };
+          
+          const addSubtask = () => {
+              if (!newSubtaskName.trim()) return;
+              const newSubtask = {
+                  id: Date.now(),
+                  name: newSubtaskName.trim(),
+                  targetCycles: newSubtaskCycles,
+                  completed: false
+              };
+              setSubtasks([...subtasks, newSubtask]);
+              setNewSubtaskName('');
+              setNewSubtaskCycles(2);
+          };
+          
+          const removeSubtask = (id) => {
+              setSubtasks(subtasks.filter(st => st.id !== id));
+          };
+          
+          const addSubtaskToTask = (taskId) => {
+              const subtaskName = prompt("Nom de la sous-tâche :");
+              if (!subtaskName || !subtaskName.trim()) return;
+              const cyclesInput = prompt("Nombre de cycles visés :", "2");
+              const cycles = parseInt(cyclesInput) || 2;
+              
+              const updatedTasks = tasksInProgress.map(t => {
+                  if (t.id === taskId) {
+                      const newSubtask = {
+                          id: Date.now(),
+                          name: subtaskName.trim(),
+                          targetCycles: cycles,
+                          completed: false
+                      };
+                      return {
+                          ...t,
+                          subtasks: [...(t.subtasks || []), newSubtask]
+                      };
+                  }
+                  return t;
+              });
+              setTasksInProgress(updatedTasks);
+              localStorage.setItem('tasksInProgress', JSON.stringify(updatedTasks));
+          };
+          
+          const toggleSubtask = (taskId, subtaskId) => {
+              const updatedTasks = tasksInProgress.map(t => {
+                  if (t.id === taskId) {
+                      return {
+                          ...t,
+                          subtasks: (t.subtasks || []).map(st => 
+                              st.id === subtaskId ? { ...st, completed: !st.completed } : st
+                          )
+                      };
+                  }
+                  return t;
+              });
+              setTasksInProgress(updatedTasks);
+              localStorage.setItem('tasksInProgress', JSON.stringify(updatedTasks));
+          };
+          
           const startTask = () => {
             if (!currentTask.trim()) return;
+            initAudio();
             
-            const newTask = {
-              id: Date.now(),
-              name: currentTask.trim(),
-              startCycle: currentCycle,
-              startedAt: new Date().toISOString(),
+            let totalTarget = targetCycles;
+            if (subtasks.length > 0) {
+                totalTarget = subtasks.reduce((sum, st) => sum + st.targetCycles, 0);
+            }
+            
+            const newTask = { 
+                id: Date.now(), 
+                name: currentTask.trim(), 
+                spentCycles: 0, 
+                targetCycles: totalTarget,
+                subtasks: subtasks.map(st => ({...st})),
+                startedAt: new Date().toISOString() 
             };
-            
-            const newTasksInProgress = [...tasksInProgress, newTask];
-            setTasksInProgress(newTasksInProgress);
-            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
-            
-            setActiveTaskId(newTask.id);
-            setTaskStartCycle(currentCycle);
-            setCurrentTask('');
-            
+            setTasksInProgress([...tasksInProgress, newTask]); 
+            localStorage.setItem('tasksInProgress', JSON.stringify([...tasksInProgress, newTask]));
+            setActiveTaskId(newTask.id); 
+            setCurrentCycle(1); 
+            setIsWorkSession(true); 
+            setCurrentTask(''); 
+            setSubtasks([]);
             setIsRunning(true);
-            // Activer l'audio context au clic
-            if (!audioContextRef.current) {
-                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            if (playerRef.current && playerRef.current.playVideo) {
-              playerRef.current.playVideo();
-            }
+            const t = Math.max(60, workTime * 60); 
+            setTotalTimeForCurrentSession(t); 
+            setTimeLeft(t);
+            if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.playVideo === 'function') playerRef.current.playVideo();
           };
 
-          const completeTask = (taskId) => {
-            const task = tasksInProgress.find(t => t.id === taskId);
-            if (!task) return;
-            
-            const cyclesSpent = currentCycle - task.startCycle + 1;
-            
-            const completedTask = {
-              ...task,
-              cycles: cyclesSpent,
-              completedAt: new Date().toISOString(),
-            };
-            
-            const newCompletedTasks = [completedTask, ...completedTasks];
-            setCompletedTasks(newCompletedTasks);
-            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
-            
-            const newStats = { ...taskStats };
-            if (!newStats[task.name]) {
-              newStats[task.name] = { totalCycles: 0, count: 0 };
-            }
-            newStats[task.name].totalCycles += cyclesSpent;
-            newStats[task.name].count += 1;
-            
-            setTaskStats(newStats);
-            localStorage.setItem('taskStats', JSON.stringify(newStats));
-            
-            const newTasksInProgress = tasksInProgress.filter(t => t.id !== taskId);
-            setTasksInProgress(newTasksInProgress);
-            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
-            
-            if (activeTaskId === taskId) {
-              setActiveTaskId(null);
-              setIsRunning(false);
-              if (playerRef.current && playerRef.current.pauseVideo) {
-                playerRef.current.pauseVideo();
+          const activateTask = (taskId) => { setActiveTaskId(taskId); initAudio(); };
+
+          const addToGoogleCalendar = (task) => {
+              const avgBreakTime = (shortBreak * 3 + longBreak) / 4;
+              const durationPerWorkSession = workTime + avgBreakTime;
+              const workSessions = Math.ceil(task.targetCycles / 2);
+              const totalDurationMin = workSessions * durationPerWorkSession;
+              
+              const startDate = new Date();
+              const endDate = new Date(startDate.getTime() + totalDurationMin * 60000);
+              const formatDate = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
+              const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(task.name)}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${encodeURIComponent("Session Pomodoro - Objectif : " + formatCycles(task.targetCycles))}&sf=true&output=xml`;
+              window.open(url, '_blank');
+          };
+
+          const getEstimatedEndTime = () => {
+              let totalRemainingSteps = 0;
+              tasksInProgress.forEach(t => {
+                  const remaining = Math.max(0, (t.targetCycles || 0) - (t.spentCycles || 0));
+                  totalRemainingSteps += remaining;
+              });
+
+              if (totalRemainingSteps === 0) return "Terminé !";
+
+              let minutesNeeded = 0;
+              if (isRunning) {
+                  minutesNeeded += timeLeft / 60;
+                  totalRemainingSteps -= 1;
               }
+
+              let simCycle = currentCycle;
+
+              while (totalRemainingSteps > 0) {
+                  // Ajouter une session de travail
+                  minutesNeeded += workTime;
+                  totalRemainingSteps--;
+                  
+                  if (totalRemainingSteps > 0) {
+                      // Ajouter une pause après le travail
+                      simCycle++;
+                      if (simCycle > 4) simCycle = 1;
+                      
+                      if (simCycle === 1) {
+                          minutesNeeded += longBreak;
+                      } else {
+                          minutesNeeded += shortBreak;
+                      }
+                  }
+              }
+              
+              const now = new Date();
+              const endDate = new Date(now.getTime() + minutesNeeded * 60000);
+              return `Fin : ${endDate.getHours().toString().padStart(2, '0')}h${endDate.getMinutes().toString().padStart(2, '0')}`;
+          };
+
+          const exportData = () => {
+              const data = {
+                  pomodoroHistory: localStorage.getItem('pomodoroHistory'),
+                  todayPomodoros: localStorage.getItem('todayPomodoros'),
+                  lastResetDate: localStorage.getItem('lastResetDate'),
+                  completedTasks: localStorage.getItem('completedTasks'),
+                  taskStats: localStorage.getItem('taskStats'),
+                  tasksInProgress: localStorage.getItem('tasksInProgress'),
+                  pomodoroLives: localStorage.getItem('pomodoroLives'),
+                  pomodoroXp: localStorage.getItem('pomodoroXp'),
+                  pomodoroStreak: localStorage.getItem('pomodoroStreak'),
+                  pomodoroBadges: localStorage.getItem('pomodoroBadges'),
+                  pomodoroMediaMode: localStorage.getItem('pomodoroMediaMode'),
+                  pomodoroCalendarEmail: localStorage.getItem('pomodoroCalendarEmail')
+              };
+              const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `pomodoro-backup-${new Date().toISOString().slice(0,10)}.json`;
+              a.click();
+          };
+
+          const completeTask = (taskId, e) => {
+            e.stopPropagation();
+            const task = tasksInProgress.find(t => t.id === taskId); if (!task) return;
+            let finalCycles = task.spentCycles || 0;
+            if (activeTaskId === taskId) { finalCycles += 1; }
+            addXp(50 * Math.max(1, finalCycles)); 
+            let newLives = lives;
+            if (finalCycles < task.targetCycles) newLives = Math.min(lives + 1, 10);
+            else if (finalCycles > task.targetCycles) newLives = Math.max(lives - 1, 0);
+            setLives(newLives); localStorage.setItem('pomodoroLives', newLives);
+            if (newLives === 0) { setShowGameOver(true); stopTimer(); }
+            const completedTask = { ...task, cycles: finalCycles, completedAt: new Date().toISOString() };
+            const newCompletedTasks = [completedTask, ...completedTasks];
+            setCompletedTasks(newCompletedTasks); localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+            const newStats = { ...taskStats };
+            if (!newStats[task.name]) newStats[task.name] = { totalCycles: 0, count: 0 };
+            newStats[task.name].totalCycles += finalCycles; newStats[task.name].count += 1;
+            setTaskStats(newStats); localStorage.setItem('taskStats', JSON.stringify(newStats));
+            const newTasksInProgress = tasksInProgress.filter(t => t.id !== taskId);
+            setTasksInProgress(newTasksInProgress); localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
+            if (activeTaskId === taskId) { 
+                setActiveTaskId(null); 
+                setIsRunning(false); 
+                if (mediaMode === 'video' && playerRef.current && typeof playerRef.current.pauseVideo === 'function') playerRef.current.pauseVideo(); 
             }
+            checkBadges();
+          };
+
+          const handleSort = () => {
+              if (dragItem.current === null || dragOverItem.current === null) return;
+              let _tasks = [...tasksInProgress];
+              const draggedItemContent = _tasks.splice(dragItem.current, 1)[0];
+              _tasks.splice(dragOverItem.current, 0, draggedItemContent);
+              setTasksInProgress(_tasks); localStorage.setItem('tasksInProgress', JSON.stringify(_tasks));
+              dragItem.current = null; dragOverItem.current = null;
           };
 
           const moveToInProgress = (taskId) => {
-            const task = completedTasks.find(t => t.id === taskId);
-            if (!task) return;
-            
-            const restoredTask = {
-              id: Date.now(),
-              name: task.name,
-              startCycle: currentCycle,
-              startedAt: new Date().toISOString(),
+            const task = completedTasks.find(t => t.id === taskId); if (!task) return;
+            const restoredTask = { 
+                id: Date.now(), 
+                name: task.name, 
+                spentCycles: task.cycles || 0, 
+                targetCycles: task.targetCycles || 2,
+                subtasks: task.subtasks || [],
+                startedAt: new Date().toISOString() 
             };
-            
-            const newTasksInProgress = [...tasksInProgress, restoredTask];
-            setTasksInProgress(newTasksInProgress);
-            localStorage.setItem('tasksInProgress', JSON.stringify(newTasksInProgress));
-            
-            const newCompletedTasks = completedTasks.filter(t => t.id !== taskId);
-            setCompletedTasks(newCompletedTasks);
-            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+            setTasksInProgress([...tasksInProgress, restoredTask]); localStorage.setItem('tasksInProgress', JSON.stringify([...tasksInProgress, restoredTask]));
+            const newCompleted = completedTasks.filter(t => t.id !== taskId); setCompletedTasks(newCompleted); localStorage.setItem('completedTasks', JSON.stringify(newCompleted));
           };
+          
+          const deleteCompletedTask = (taskId) => { const newC = completedTasks.filter(t => t.id !== taskId); setCompletedTasks(newC); localStorage.setItem('completedTasks', JSON.stringify(newC)); };
+          const clearAllCompletedTasks = () => { if (confirm("Effacer l'historique ?")) { setCompletedTasks([]); localStorage.setItem('completedTasks', '[]'); } };
+          const deleteStat = (taskName) => { if (confirm(`Supprimer stats pour "${taskName}" ?`)) { const ns = { ...taskStats }; delete ns[taskName]; setTaskStats(ns); localStorage.setItem('taskStats', JSON.stringify(ns)); } };
+          const restartGame = () => { setLives(5); localStorage.setItem('pomodoroLives', 5); setShowGameOver(false); };
+          const sendNotification = (title, body) => { if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3209/3209965.png" }); };
+          const formatCycles = (c) => { const t = Math.floor(c/8), r = c%8; return t>0 ? `${t}T ${r}C` : `${r}C`; };
+          const getTargetLabel = (c) => formatCycles(c);
+          const formatTime = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+          const getAverageTime = (name) => taskStats[name] ? Math.ceil(taskStats[name].totalCycles / taskStats[name].count) : 0;
+          const todayMinutes = todayPomodoros * workTime;
+          const progressPercentage = totalTimeForCurrentSession === 0 ? 100 : Math.min(100, Math.max(0, (timeLeft / totalTimeForCurrentSession) * 100));
 
-          const getAverageTime = (taskName) => {
-            if (!taskStats[taskName]) return 0;
-            const avg = taskStats[taskName].totalCycles / taskStats[taskName].count;
-            return Math.ceil(avg);
-          };
+          const cardStyle = { backgroundColor: theme.card, borderColor: theme.border, color: theme.text };
+          const primaryBtnStyle = { backgroundColor: theme.primary, color: '#FFFFFF', borderColor: theme.bg };
+          const secondaryBtnStyle = { backgroundColor: theme.secondary, color: '#FFFFFF', borderColor: theme.bg };
+          const inputStyle = { backgroundColor: isDarkMode ? theme.bg : '#FFFFFF', borderColor: theme.border, color: theme.text };
 
-          const formatCycles = (cycles) => {
-            const hours = Math.floor(cycles * workTime / 60);
-            const mins = (cycles * workTime) % 60;
-            if (hours > 0) {
-              return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
-            }
-            return `${mins}min`;
-          };
-
-          const currentRound = Math.ceil(currentCycle / 2);
+          const changeMediaMode = (mode) => { setMediaMode(mode); localStorage.setItem('pomodoroMediaMode', mode); };
+          const handleCalendarEmailChange = (e) => { const val = e.target.value; setCalendarEmail(val); localStorage.setItem('pomodoroCalendarEmail', val); };
 
           return (
-            <div className="max-w-7xl mx-auto">
-              <h1 className="text-5xl font-bold mb-12 text-center text-[#151515]">
-                Pomodoro Focus Timer
-              </h1>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* COLONNE GAUCHE */}
-                <div className="space-y-6">
-                  {/* Carte Vidéo */}
-                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Vidéo d'ambiance</h2>
-                    <div className="flex gap-3 mb-6">
-                      <input
-                        type="text"
-                        value={youtubeUrl}
-                        onChange={(e) => setYoutubeUrl(e.target.value)}
-                        placeholder="URL YouTube (vidéo ou playlist)"
-                        className="flex-1 px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
-                      />
-                      <button
-                        onClick={loadVideo}
-                        className="px-8 py-3 bg-[#151515] hover:bg-[#2a2a2a] text-white rounded-2xl font-medium transition"
-                      >
-                        Charger
-                      </button>
-                    </div>
-                    <div className="aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-[#151515]">
-                      {videoId || isPlaylist ? (
-                        isPlaylist ? (
-                          <iframe
-                            className="w-full h-full"
-                            src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=0&controls=1&origin=${window.location.origin}`}
-                            title="YouTube playlist player"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          ></iframe>
-                        ) : (
-                          <div id="youtube-player" className="w-full h-full"></div>
-                        )
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400">
-                          Entrez une URL YouTube pour commencer
-                        </div>
-                      )}
-                    </div>
+            <div className="transition-colors duration-500">
+              {showGameOver && (
+                  <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                      <div className="p-8 rounded-3xl border-4 max-w-lg w-full text-center modal-animate shadow-2xl" style={{backgroundColor: theme.card, borderColor: theme.primary}}>
+                          <h2 className="text-5xl font-bold mb-6 tracking-wider" style={{color: theme.primary}}>GAME OVER</h2>
+                          <p className="text-xl mb-8" style={{color: theme.text}}>Recommence, tu dois encore t'améliorer sur ta gestion du temps</p>
+                          <button onClick={restartGame} className="px-8 py-4 text-white text-lg font-bold rounded-2xl hover:opacity-90 transition border-2" style={primaryBtnStyle}>Recommencer</button>
+                      </div>
                   </div>
-
-                  {/* Historique Vidéo */}
-                  {videoHistory.length > 0 && (
-                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
+              )}
+              
+              {/* TIMER XXL - FULL SCREEN ABOVE THE FOLD */}
+              <div className={`min-h-screen flex items-center justify-center px-4 md:px-8 py-8 relative ${isDarkMode ? 'gradient-bg-dark' : 'gradient-bg'}`}>
+                  {/* Stats en haut à droite */}
+                  <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-10">
+                      <div className="flex gap-3">
+                          <div className={`px-4 py-3 rounded-2xl flex items-center gap-2 ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                              <span className="text-xl">🔥</span><span className="font-bold">{streak}</span>
+                          </div>
+                          <div className={`px-4 py-3 rounded-2xl flex gap-1 ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                              {[...Array(10)].map((_, i) => <div key={i} className="heart-icon">{i < lives ? <FullHeart color={theme.primary} /> : <EmptyHeart color={theme.border} />}</div>)}
+                          </div>
+                      </div>
+                      <div className={`p-4 rounded-2xl w-64 ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                          <div className="flex justify-between items-end mb-2">
+                              <span className="font-semibold text-sm">Niveau {getLevel()}</span>
+                              <span className="text-xs opacity-70">{xp} XP</span>
+                          </div>
+                          <div className="w-full bg-white bg-opacity-20 rounded-full h-2.5 border border-white border-opacity-10">
+                              <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: `${getXpProgress()}%`, backgroundColor: theme.accent }}></div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  {/* TIMER EN 2 COLONNES */}
+                  <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                      {/* COLONNE GAUCHE : CHRONOMÈTRE GÉANT */}
+                      <div className="flex items-center justify-center">
+                          <div className="relative">
+                              <ProgressRing radius={240} stroke={6} progress={progressPercentage} color={theme.primary} trackColor={isDarkMode ? '#4a4a4a' : '#d1d5db'} />
+                              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                                  <div className="timer-text text-9xl font-extralight tracking-tight mb-2" style={{color: theme.text}}>{formatTime(timeLeft)}</div>
+                                  {activeTaskId && (
+                                      <div className="mt-4 text-lg font-light opacity-70 max-w-xs truncate px-4" style={{color: theme.secondary}}>
+                                          {tasksInProgress.find(t => t.id === activeTaskId)?.name || ''}
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                      
+                      {/* COLONNE DROITE : CONTRÔLES & INFOS */}
+                      <div className="flex flex-col gap-8">
+                          {/* État TRAVAIL/PAUSE */}
+                          <div className="text-center">
+                              <span className={`text-4xl font-light tracking-wide px-8 py-4 rounded-3xl inline-block ${isDarkMode ? 'glass-card-dark' : 'glass-card'} ${isWorkSession ? 'animate-pulse' : ''}`} style={{color: theme.text}}>
+                                  {isWorkSession ? '⚡ TRAVAIL' : '☕ PAUSE'}
+                              </span>
+                          </div>
+                          
+                          {/* Cycle */}
+                          <div className="text-center text-2xl font-light opacity-60" style={{color: theme.text}}>
+                              Cycle {currentCycle}/4
+                          </div>
+                          
+                          {/* Boutons de contrôle */}
+                          <div className="flex justify-center gap-4">
+                              <button onClick={toggleTimer} className={`w-20 h-20 rounded-3xl transition-all flex items-center justify-center ${isDarkMode ? 'glass-card-dark' : 'glass-card'} ${!activeTaskId && !isRunning ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}>
+                                  {isRunning ? <div className="pause-icon scale-150"><div className="pause-bar"></div><div className="pause-bar"></div></div> : <div className="play-icon scale-150"></div>}
+                              </button>
+                              <button onClick={stopTimer} className={`w-20 h-20 rounded-3xl flex items-center justify-center ${isDarkMode ? 'glass-card-dark' : 'glass-card'} hover:scale-105 transition-all`}><div className="stop-icon scale-150"></div></button>
+                              <button onClick={resetTimer} className={`w-20 h-20 rounded-3xl flex items-center justify-center ${isDarkMode ? 'glass-card-dark' : 'glass-card'} hover:scale-105 transition-all`}><div className="reset-icon scale-150"></div></button>
+                          </div>
+                          
+                          {/* Stats du jour */}
+                          <div className="text-center">
+                              <div className={`text-xl font-light py-4 px-8 rounded-3xl inline-block ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`} style={{color: theme.text}}>
+                                  Aujourd'hui : {todayPomodoros} pomodoro{todayPomodoros > 1 ? 's' : ''}<br/>
+                                  <span className="text-base opacity-70">({Math.floor(todayMinutes / 60)}h {todayMinutes % 60}m)</span>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+              </div>
+              
+              {/* CONTENU SCROLLABLE - 2 COLONNES */}
+              <div className="w-full" style={{backgroundColor: theme.bg}}>
+              <div className="max-w-7xl mx-auto px-4 md:px-8 pb-10 pt-10">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold">Espace Focus</h2>
+                        <div className="flex gap-2">
+                            <button onClick={() => changeMediaMode('video')} className={`px-3 py-1 rounded-lg text-xs font-bold transition ${mediaMode === 'video' ? 'opacity-100' : 'opacity-50'}`} style={mediaMode === 'video' ? primaryBtnStyle : secondaryBtnStyle}>🎥 Vidéo</button>
+                            <button onClick={() => changeMediaMode('calendar')} className={`px-3 py-1 rounded-lg text-xs font-bold transition ${mediaMode === 'calendar' ? 'opacity-100' : 'opacity-50'}`} style={mediaMode === 'calendar' ? primaryBtnStyle : secondaryBtnStyle}>📅 Agenda</button>
+                        </div>
+                    </div>
+                    {mediaMode === 'video' ? (
+                        <>
+                            <div className="flex gap-3 mb-4">
+                              <input type="text" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="URL YouTube" className="flex-1 px-4 py-2 rounded-xl focus:outline-none border-2" style={inputStyle} />
+                              <button onClick={loadVideo} className="px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90" style={primaryBtnStyle}>Charger</button>
+                            </div>
+                            <div className="aspect-video bg-black rounded-2xl overflow-hidden border-2" style={{borderColor: theme.border}}>
+                              {videoId || isPlaylist ? ( isPlaylist ? <iframe className="w-full h-full" src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=0&controls=1&origin=${window.location.origin}`} allowFullScreen></iframe> : <div id="youtube-player" className="w-full h-full"></div> ) : <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">Vidéo ici</div>}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                           <div className="flex gap-3 mb-4">
+                              <input type="text" value={calendarEmail} onChange={handleCalendarEmailChange} placeholder="votre.email@gmail.com" className="flex-1 px-4 py-2 rounded-xl focus:outline-none border-2" style={inputStyle} />
+                           </div>
+                           <div className="aspect-video bg-white rounded-2xl overflow-hidden border-2 relative" style={{borderColor: theme.border}}>
+                               {calendarEmail ? (
+                                   <iframe src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarEmail)}&ctz=Europe%2FParis&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0`} style={{border: 0}} width="100%" height="100%" frameBorder="0" scrolling="no"></iframe>
+                               ) : (
+                                   <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
+                                       <p className="text-slate-400 text-sm mb-2">Entrez votre email Google ci-dessus pour voir votre agenda.</p>
+                                       <p className="text-slate-500 text-xs italic">Note : Vous devez être connecté à ce compte Google dans ce navigateur.</p>
+                                   </div>
+                               )}
+                           </div>
+                        </>
+                    )}
+                  </div>
+                  
+                  {mediaMode === 'video' && videoHistory.length > 0 && (
+                    <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
                       <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-semibold text-[#151515]">Historique des vidéos</h3>
-                        <button
-                          onClick={clearHistory}
-                          className="text-sm px-4 py-2 bg-[#F2994A] text-[#FEFAF5] hover:bg-[#e08936] border-2 border-[#FEFAF5] rounded-xl transition"
-                        >
-                          Vider
-                        </button>
+                        <h2 className="text-xl font-semibold">Historique Vidéos</h2>
+                        <button onClick={clearHistory} className="text-sm px-4 py-2 rounded-2xl border hover:opacity-90 transition" style={secondaryBtnStyle}>Vider</button>
                       </div>
                       <div className="space-y-3">
                         {videoHistory.map((item, idx) => (
                           <div key={idx} className="flex items-center gap-3">
-                            <button
-                              onClick={() => loadHistoryVideo(item)}
-                              className="flex-1 text-left px-5 py-3 bg-white hover:bg-slate-50 border-2 border-[#151515] rounded-2xl transition text-sm truncate text-[#151515]"
-                            >
-                              {item.url}
-                            </button>
-                            <button
-                              onClick={() => deleteFromHistory(idx)}
-                              className="px-4 py-3 bg-[#F2994A] hover:bg-[#e08936] text-[#FEFAF5] border-2 border-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
-                            >
-                              <div className="cross-icon"></div>
-                            </button>
+                            <button onClick={() => loadHistoryVideo(item)} className="flex-1 text-left px-5 py-3 border-2 rounded-2xl transition text-sm truncate hover:opacity-80" style={{...inputStyle, backgroundColor: isDarkMode ? theme.bg : '#F9FAFB'}}>{item.url}</button>
+                            <button onClick={() => deleteFromHistory(idx)} className="px-4 py-3 border-2 rounded-2xl transition flex items-center justify-center hover:opacity-90" style={secondaryBtnStyle}><div className="cross-icon"></div></button>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Historique Tâches */}
-                  {completedTasks.length > 0 && (
-                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Historique des tâches</h2>
-                      <div className="space-y-3 max-h-80 overflow-y-auto">
-                        {completedTasks.slice(0, 10).map((task) => (
-                          <div key={task.id} className="bg-white p-4 rounded-2xl border-2 border-[#151515]">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="font-medium text-[#151515]">{task.name}</div>
-                                <div className="text-slate-600 text-xs mt-1">
-                                  {formatCycles(task.cycles)} • {new Date(task.completedAt).toLocaleString('fr-FR')}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => moveToInProgress(task.id)}
-                                className="px-3 py-2 bg-[#F2994A] text-[#FEFAF5] hover:bg-[#e08936] border-2 border-[#FEFAF5] rounded-xl text-xs transition ml-3"
-                              >
-                                Reprendre
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* COLONNE DROITE */}
-                <div className="space-y-6">
-                  {/* Timer Principal */}
-                  <div className="bg-[#FEFAF5] p-10 rounded-3xl border-2 border-[#151515] text-center">
-                    <div className="mb-6">
-                      <span className="text-sm font-medium text-slate-600">
-                        {isWorkSession ? 'Session de travail' : 'Pause'} • Tour {currentRound}/4 (Cycle {currentCycle}/8)
-                      </span>
-                    </div>
-                    <div className="text-8xl font-bold mb-10 text-[#151515]">
-                      {formatTime(timeLeft)}
-                    </div>
-                    <div className="flex justify-center gap-4 mb-8">
-                      <button
-                        onClick={toggleTimer}
-                        className={`p-5 border-2 rounded-2xl transition flex items-center justify-center ${
-                          isRunning 
-                            ? 'bg-[#F2994A] border-[#FEFAF5] text-[#FEFAF5] hover:bg-[#e08936]' 
-                            : 'bg-[#FEFAF5] border-[#151515] text-[#151515] hover:bg-slate-50'
-                        }`}
-                      >
-                        {isRunning ? (
-                          <div className="pause-icon">
-                            <div className="pause-bar"></div>
-                            <div className="pause-bar"></div>
-                          </div>
-                        ) : (
-                          <div className="play-icon"></div>
-                        )}
-                      </button>
-                      <button
-                        onClick={stopTimer}
-                        className="p-5 bg-[#F2994A] border-2 border-[#FEFAF5] hover:bg-[#e08936] text-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
-                      >
-                        <div className="stop-icon"></div>
-                      </button>
-                      <button
-                        onClick={resetTimer}
-                        className="p-5 bg-[#F2994A] border-2 border-[#FEFAF5] hover:bg-[#e08936] text-[#FEFAF5] rounded-2xl transition flex items-center justify-center"
-                      >
-                        <div className="reset-icon"></div>
-                      </button>
-                    </div>
-                    <div className="text-xl font-semibold text-[#FEFAF5] bg-[#F2994A] py-4 px-6 rounded-2xl border-2 border-[#151515]">
-                      Aujourd'hui : {todayPomodoros} pomodoro{todayPomodoros > 1 ? 's' : ''}
-                    </div>
-                  </div>
-
-                  {/* Réglages */}
-                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Réglages</h2>
-                    <div className="space-y-5">
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-[#151515]">Temps de travail (min)</label>
-                        <input
-                          type="number"
-                          value={workTime}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
-                            setWorkTime(val);
-                            if (isWorkSession && !isRunning) setTimeLeft(val * 60);
-                          }}
-                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
-                          min="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-[#151515]">Pause courte (min)</label>
-                        <input
-                          type="number"
-                          value={shortBreak}
-                          onChange={(e) => setShortBreak(parseInt(e.target.value) || 0)}
-                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-[#151515]">Pause longue (min)</label>
-                        <input
-                          type="number"
-                          value={longBreak}
-                          onChange={(e) => setLongBreak(parseInt(e.target.value) || 0)}
-                          className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Nouvelle Tâche */}
-                  <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                    <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Nouvelle tâche</h2>
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        value={currentTask}
-                        onChange={(e) => setCurrentTask(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && startTask()}
-                        placeholder="Ex: Montage vidéo, Rédaction article..."
-                        className="w-full px-5 py-3 bg-white border-2 border-[#151515] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#151515] text-[#151515]"
-                      />
-                      <button
-                        onClick={startTask}
-                        disabled={!currentTask.trim()}
-                        className="w-full px-5 py-4 bg-[#151515] hover:bg-[#2a2a2a] text-white disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed rounded-2xl font-medium transition border-2 border-[#151515]"
-                      >
-                        Lancer la tâche
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tâches en cours */}
+                  
                   {tasksInProgress.length > 0 && (
-                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Tâches en cours</h2>
+                    <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                      <div className="flex justify-between items-center mb-4">
+                          <h2 className="text-xl font-semibold">En cours</h2>
+                          <span className="text-xs font-bold px-2 py-1 rounded-lg bg-opacity-20" style={{backgroundColor: theme.primary, color: theme.text}}>
+                              {getEstimatedEndTime()}
+                          </span>
+                      </div>
                       <div className="space-y-3">
-                        {tasksInProgress.map((task) => (
-                          <div key={task.id} className={`p-5 rounded-2xl border-2 ${activeTaskId === task.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-[#151515]'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="font-medium flex-1 text-[#151515]">{task.name}</div>
-                              <button
-                                onClick={() => completeTask(task.id)}
-                                className="px-4 py-2 bg-[#F2994A] hover:bg-[#e08936] text-[#FEFAF5] border-2 border-[#FEFAF5] rounded-xl text-sm transition ml-3"
-                              >
-                                ✓ Terminée
-                              </button>
+                        {tasksInProgress.map((task, index) => {
+                          const isActive = activeTaskId === task.id;
+                          const activeCardStyle = isActive 
+                            ? { backgroundColor: isDarkMode ? '#111827' : '#FFFFFF', borderColor: theme.secondary, color: theme.text, boxShadow: `0 4px 6px -1px ${theme.secondary}40` } 
+                            : { ...inputStyle, backgroundColor: isDarkMode ? theme.bg : '#FFFFFF' };
+                          
+                          const taskSubtasks = task.subtasks || [];
+                          const completedSubtasks = taskSubtasks.filter(st => st.completed).length;
+
+                          return (
+                            <div key={task.id} draggable onDragStart={() => (dragItem.current = index)} onDragEnter={() => (dragOverItem.current = index)} onDragEnd={handleSort} onDragOver={(e) => e.preventDefault()} onClick={() => activateTask(task.id)} className={`p-4 rounded-2xl border card-draggable transition-all cursor-pointer relative group ${isActive ? 'scale-[1.02]' : 'hover:opacity-80'}`} style={activeCardStyle}>
+                                {isActive && <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full active-dot border-2 border-white" style={{backgroundColor: theme.accent}}></div>}
+                                <div className="flex justify-between items-start mb-2 pl-3">
+                                  <div className="font-medium flex-1 flex items-center" style={{color: isActive ? theme.secondary : theme.text}}>
+                                      <GripHandle />
+                                      {task.name}
+                                      {isActive && <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-bold" style={{backgroundColor: theme.secondary, color: '#fff'}}>ACTIVE</span>}
+                                  </div>
+                                  <div className="flex gap-2 z-10 relative">
+                                      <button onClick={(e) => { e.stopPropagation(); addToGoogleCalendar(task); }} className="px-3 py-1 border-2 rounded-xl text-xs transition hover:opacity-90 flex items-center" style={{...secondaryBtnStyle, backgroundColor: '#FFFFFF', color: '#151515'}} title="Ajouter à l'agenda">📅</button>
+                                      <button onClick={(e) => { e.stopPropagation(); addSubtaskToTask(task.id); }} className="px-3 py-1 border-2 rounded-xl text-xs transition hover:opacity-90 flex items-center" style={secondaryBtnStyle} title="Ajouter sous-tâche"><div className="plus-icon"></div></button>
+                                      <button onClick={(e) => completeTask(task.id, e)} className="px-3 py-1 border-2 rounded-xl text-xs transition hover:opacity-90" style={secondaryBtnStyle}>Fini</button>
+                                  </div>
+                                </div>
+                                
+                                <div className="text-xs font-medium pl-9 opacity-70 mb-2">
+                                    <span>Temps: {formatCycles(task.spentCycles || 0)}</span>
+                                    {isActive && isWorkSession && isRunning && <span className="ml-1 text-xs opacity-60 animate-pulse">(+1 en cours...)</span>}
+                                    <span className="ml-1">/ Visé: {formatCycles(task.targetCycles)}</span>
+                                </div>
+                                
+                                {taskSubtasks.length > 0 && (
+                                    <div className="pl-9 mt-3 space-y-2">
+                                        <div className="text-xs font-semibold opacity-70 mb-2">
+                                            Sous-tâches ({completedSubtasks}/{taskSubtasks.length})
+                                        </div>
+                                        {taskSubtasks.map(st => (
+                                            <div key={st.id} onClick={(e) => { e.stopPropagation(); toggleSubtask(task.id, st.id); }} className={`flex items-center gap-2 text-xs cursor-pointer hover:opacity-80 ${st.completed ? 'subtask-completed' : ''}`}>
+                                                <input type="checkbox" checked={st.completed} onChange={() => {}} className="checkbox-custom" style={{borderColor: theme.border}} />
+                                                <span className="flex-1">{st.name}</span>
+                                                <span className="opacity-50">{formatCycles(st.targetCycles)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            <div className="text-xs text-slate-600 font-medium">
-                              Cycles : {currentCycle - task.startCycle + 1}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-
-                  {/* Statistiques */}
-                  {Object.keys(taskStats).length > 0 && (
-                    <div className="bg-[#FEFAF5] p-8 rounded-3xl border-2 border-[#151515]">
-                      <h2 className="text-2xl font-semibold mb-6 text-[#151515]">Statistiques par activité</h2>
-                      <div className="space-y-3">
-                        {Object.entries(taskStats).map(([taskName, stats]) => (
-                          <div key={taskName} className="bg-white p-5 rounded-2xl border-2 border-[#151515]">
-                            <div className="font-medium mb-2 text-[#151515]">{taskName}</div>
-                            <div className="text-sm text-slate-700">
-                              Temps moyen : {formatCycles(getAverageTime(taskName))} ({getAverageTime(taskName)} cycle{getAverageTime(taskName) > 1 ? 's' : ''})
+                  
+                  {completedTasks.length > 0 && (
+                    <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                      <div className="flex justify-between items-center mb-4">
+                         <h2 className="text-xl font-semibold">Historique Tâches</h2>
+                         <button onClick={clearAllCompletedTasks} className="text-xs px-2 py-1 bg-red-100 text-red-600 border border-red-200 rounded hover:bg-red-200">Effacer</button>
+                      </div>
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        {completedTasks.slice(0, 10).map((task) => (
+                          <div key={task.id} className="p-3 rounded-xl border text-sm" style={{...inputStyle, backgroundColor: isDarkMode ? theme.bg : '#FFFFFF'}}>
+                            <div className="flex justify-between items-center">
+                              <div className="font-medium">{task.name}</div>
+                              <div className="flex gap-2">
+                                <button onClick={() => moveToInProgress(task.id)} className="hover:underline text-xs" style={{color: theme.secondary}}>Reprendre</button>
+                                <button onClick={() => deleteCompletedTask(task.id)} className="opacity-50 hover:opacity-100 hover:text-red-500"><div className="trash-icon" style={{transform: 'scale(0.8)'}}></div></button>
+                              </div>
                             </div>
-                            <div className="text-xs text-slate-600 mt-1">
-                              {stats.count} tâche{stats.count > 1 ? 's' : ''} terminée{stats.count > 1 ? 's' : ''}
+                            <div className="flex justify-between mt-1 text-xs opacity-70">
+                                <span>{formatCycles(task.cycles)} / {formatCycles(task.targetCycles || 0)}</span>
+                                <span className={task.cycles < task.targetCycles ? 'text-green-500 font-bold' : task.cycles > task.targetCycles ? 'text-red-500 font-bold' : ''}>
+                                    {task.cycles < task.targetCycles ? '+1 Vie' : task.cycles > task.targetCycles ? '-1 Vie' : 'Neutre'}
+                                </span>
                             </div>
                           </div>
                         ))}
@@ -724,12 +930,94 @@
                     </div>
                   )}
                 </div>
+                
+                <div className="space-y-6">
+                  <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold">Réglages</h2>
+                        <div className="flex gap-2 items-center">
+                            <button onClick={exportData} className="text-xs px-2 py-1 rounded border hover:opacity-80" style={{borderColor: theme.text, color: theme.text}}>💾 Sauvegarder</button>
+                            <div className="relative w-14 h-8 rounded-full cursor-pointer transition-colors duration-300 flex items-center px-1" style={{backgroundColor: isDarkMode ? '#4B5563' : '#93C5FD'}} onClick={toggleDarkMode}>
+                                <span className="absolute left-1.5 text-xs">☀️</span><span className="absolute right-1.5 text-xs">🌙</span>
+                                <div className="w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 z-10" style={{transform: isDarkMode ? 'translateX(24px)' : 'translateX(0)'}}></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div><label className="block text-xs font-medium mb-1 opacity-70">Travail</label><input type="number" value={workTime} onChange={(e) => { let v = Math.max(1, Math.min(60, parseInt(e.target.value)||1)); setWorkTime(v); if (isWorkSession && !isRunning) { setTimeLeft(v*60); setTotalTimeForCurrentSession(v*60); }}} className="w-full px-2 py-2 border-2 rounded-xl text-center focus:outline-none" style={inputStyle} min="1" max="60"/></div>
+                        <div><label className="block text-xs font-medium mb-1 opacity-70">P. Courte</label><input type="number" value={shortBreak} onChange={(e) => setShortBreak(Math.max(0, Math.min(60, parseInt(e.target.value)||0)))} className="w-full px-2 py-2 border-2 rounded-xl text-center focus:outline-none" style={inputStyle} min="0" max="60"/></div>
+                        <div><label className="block text-xs font-medium mb-1 opacity-70">P. Longue</label><input type="number" value={longBreak} onChange={(e) => setLongBreak(Math.max(0, Math.min(60, parseInt(e.target.value)||0)))} className="w-full px-2 py-2 border-2 rounded-xl text-center focus:outline-none" style={inputStyle} min="0" max="60"/></div>
+                    </div>
+                    <div><label className="block text-xs font-medium mb-1 opacity-70">Volume ({Math.round(volume * 100)}%)</label><input type="range" min="0" max="1" step="0.1" value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))} className="w-full h-2 rounded-lg appearance-none cursor-pointer" style={{accentColor: theme.primary, backgroundColor: theme.border}}/></div>
+                  </div>
+                  
+                  <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                    <h2 className="text-xl font-semibold mb-4">Nouvelle tâche</h2>
+                    <div className="space-y-4">
+                      <input type="text" value={currentTask} onChange={(e) => setCurrentTask(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && startTask()} placeholder="Nom de la tâche..." className="w-full px-4 py-3 border-2 rounded-2xl focus:outline-none" style={inputStyle} />
+                      
+                      <div className="rounded-2xl p-4 border-2 space-y-3" style={{...inputStyle, backgroundColor: isDarkMode ? theme.bg : '#FFFFFF'}}>
+                          <label className="text-xs font-medium opacity-70">Sous-tâches</label>
+                          
+                          {subtasks.length > 0 && (
+                              <div className="space-y-2 mb-3">
+                                  {subtasks.map(st => (
+                                      <div key={st.id} className="flex items-center gap-2 text-sm p-2 rounded-lg" style={{backgroundColor: isDarkMode ? theme.card : '#F9FAFB'}}>
+                                          <span className="flex-1">{st.name}</span>
+                                          <span className="text-xs opacity-70">{formatCycles(st.targetCycles)}</span>
+                                          <button onClick={() => removeSubtask(st.id)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                          
+                          <div className="flex gap-2">
+                              <input type="text" value={newSubtaskName} onChange={(e) => setNewSubtaskName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addSubtask()} placeholder="Nom sous-tâche..." className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none" style={inputStyle} />
+                              <input type="number" value={newSubtaskCycles} onChange={(e) => setNewSubtaskCycles(Math.max(1, parseInt(e.target.value) || 1))} className="w-16 px-2 py-2 border-2 rounded-xl text-center text-sm focus:outline-none" style={inputStyle} min="1" />
+                              <button onClick={addSubtask} className="px-3 py-2 border-2 rounded-xl hover:opacity-90 flex items-center" style={secondaryBtnStyle}><div className="plus-icon"></div></button>
+                          </div>
+                      </div>
+                      
+                      {subtasks.length === 0 && (
+                          <div className="rounded-2xl p-3 flex flex-col items-center border-2" style={{...inputStyle, backgroundColor: isDarkMode ? theme.bg : '#FFFFFF'}}>
+                              <label className="text-xs font-medium opacity-50 mb-2">Objectif (Temps visé)</label>
+                              <div className="flex items-center gap-4 w-full justify-between px-2">
+                                  <button onClick={() => adjustTargetCycles(-1)} className="w-10 h-10 flex items-center justify-center border-2 rounded-xl hover:opacity-70 transition" style={{borderColor: theme.border}}><div className="w-3 h-1 bg-current rounded-sm"></div></button>
+                                  <div className="text-lg font-bold">{getTargetLabel(targetCycles)}</div>
+                                  <button onClick={() => adjustTargetCycles(1)} className="w-10 h-10 flex items-center justify-center border-2 rounded-xl hover:opacity-70 transition relative" style={{borderColor: theme.border}}><div className="absolute w-3 h-1 bg-current rounded-sm"></div><div className="absolute w-1 h-3 bg-current rounded-sm"></div></button>
+                              </div>
+                          </div>
+                      )}
+                      
+                      <button onClick={startTask} disabled={!currentTask.trim()} className="w-full px-5 py-3 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-medium transition border-2 hover:opacity-90" style={primaryBtnStyle}>GO !</button>
+                    </div>
+                  </div>
+                  
+                  <div className={`p-8 rounded-3xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+                      <h2 className="text-xl font-semibold mb-4">Succès</h2>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                          {BADGES_DEF.map((badge) => {
+                              const unlocked = badges.includes(badge.id);
+                              return (
+                                  <div key={badge.id} className={`group relative flex flex-col items-center text-center p-2 rounded-xl transition cursor-help ${unlocked ? 'border-2 trophy-unlocked' : 'opacity-50 trophy-locked'}`} style={unlocked ? {borderColor: theme.accent, backgroundColor: isDarkMode ? theme.bg : '#fff'} : {}}>
+                                      <div className="text-3xl mb-1">{badge.icon}</div>
+                                      <div className="text-[10px] font-bold leading-tight">{badge.name}</div>
+                                      <div className="absolute bottom-full mb-2 w-32 p-2 text-white text-[10px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 pointer-events-none shadow-xl" style={{backgroundColor: theme.text, color: theme.bg}}>
+                                          {badge.desc}
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent" style={{borderTopColor: theme.text}}></div>
+                                      </div>
+                                  </div>
+                              );
+                          })}
+                      </div>
+                  </div>
+                </div>
+              </div>
+              </div>
               </div>
             </div>
           );
         }
-
-        // Rendu React 18 correct
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<PomodoroTimer />);
     </script>
